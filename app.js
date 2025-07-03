@@ -29,6 +29,9 @@ const PORT = process.env.PORT || 3000;
 
 
 app.use(express.json());
+// ✅ Express setup for parsing form data (Twilio sends this)
+app.use(express.urlencoded({ extended: true }));
+
 app.use(cors({
   origin: "http://localhost:5173", // or "*" for open access
   credentials: true

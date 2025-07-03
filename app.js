@@ -34,7 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
-  origin: "http://localhost:5173", // or "*" for open access
+  origin: "*", // or "*" for open access
   credentials: true
 }));
 

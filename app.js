@@ -48,7 +48,7 @@ app.use("/api/queue", triggerDailyQueue);
  app.use("/twiml", twimlPlay);
 
 // 👇 Serve audio files for Twilio from /temp folder
-//app.use("/temp", express.static(path.join(__dirname, "temp")));
+app.use("/temp", express.static(path.join(__dirname, "temp")));
 app.use("/audio", express.static(path.join(__dirname, "temp/audio")));
 app.use("/api", startCallsRoute); 
 // ✅ Start daily reset cron

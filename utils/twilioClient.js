@@ -6,7 +6,7 @@ require("dotenv").config();
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const callerNumber = process.env.TWILIO_CALLER_NUMBER;
-const audioBaseUrl = process.env.BASE_URL || "http://localhost:5000"; // public URL base
+const audioBaseUrl = process.env.BASE_URL;
 
 const client = twilio(accountSid, authToken);
 

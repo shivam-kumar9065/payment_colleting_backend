@@ -15,6 +15,7 @@ const path = require("path");``
 const startCallsRoute = require("./routes/startCalls");
 const cors = require('cors');
 const twimlPlay = require("./routes/twimlPlay");
+const twimlConverse = require('./routes/twimlConverse');
 //
 
 
@@ -38,6 +39,7 @@ app.use(cors({
 }));
 
 // ✅ API Routes
+app.use('/temp', express.static('temp'));
 app.use('/api', generateQueueRoute);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/stt', sttRoutes); // ✅ Use STT route
@@ -46,7 +48,7 @@ app.use("/audio", express.static(path.join(__dirname, "/temp"))); // Serve audio
 app.use("/twiml/ai-agent", twimlAiAgent); 
 app.use("/api/queue", triggerDailyQueue);
  app.use("/twiml", twimlPlay);
-
+app.use('/twiml/converse', twimlConverse);
 // 👇 Serve audio files for Twilio from /temp folder
 app.use("/audio", express.static(path.join(__dirname, "temp/audio")));
 app.use("/temp", express.static(path.join(__dirname, "temp")));

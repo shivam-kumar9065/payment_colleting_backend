@@ -104,7 +104,98 @@
 
 
 
-// ✅ backend/controllers/callController.js
+// // ✅ backend/controllers/callController.js
+// const admin = require("firebase-admin");
+// const { runGeminiPrompt } = require("../services/geminiAgent");
+// const { getTTSService } = require("../services/tts");
+// const { triggerAICall } = require("../utils/twilioClient");
+
+// const db = admin.firestore();
+
+// async function fetchTodayCustomers(ownerId, retryLimit) {
+//   const snapshot = await db
+//     .collection("customers")
+//     .doc(ownerId)
+//     .collection("customerList")
+//     .where("status", "in", ["pending", "retry", "Partial", "not-answered"])
+//     .get();
+
+//   return snapshot.docs
+//     .map((doc) => ({ id: doc.id, ...doc.data() }))
+//     .filter((cust) => (cust.dailyCallAttempts || 0) < retryLimit);
+// }
+
+// async function processCallsForOwner(ownerId) {
+//   const configSnap = await db.collection("businessConfigs").doc(ownerId).get();
+//   const config = configSnap.exists ? configSnap.data() : {};
+//   const retryLimit = parseInt(config.retryLimit || "3");
+
+//   const customers = await fetchTodayCustomers(ownerId, retryLimit);
+//   if (customers.length === 0) {
+//     console.log(`✅ No customers to call for owner ${ownerId}`);
+//     return;
+//   }
+
+//   const tts = await getTTSService();
+
+//   for (const customer of customers) {
+//     if (customer.callStatus === "calling") {
+//       console.log(`⏩ Skipping already calling customer: ${customer.phone}`);
+//       continue;
+//     }
+
+//     try {
+//       console.log(`🔁 Calling ${customer.name} (${customer.phone})`);
+
+//       // ✅ Step 1: Update call status immediately
+//       await db
+//         .collection("customers")
+//         .doc(ownerId)
+//         .collection("customerList")
+//         .doc(customer.id)
+//         .update({
+//           callStatus: "calling",
+//           lastCall: admin.firestore.FieldValue.serverTimestamp(),
+//           dailyCallAttempts: (customer.dailyCallAttempts || 0) + 1,
+//           attemptCount: (customer.attemptCount || 0) + 1,
+//         });
+
+//       // Step 2: Generate Gemini message
+//       const replyText = await runGeminiPrompt(customer, config);
+
+//       // Step 3: Convert to audio
+//       const audioPath = await tts.synthesizeSpeech(replyText);
+
+//       // Step 4: Trigger call
+//       await triggerAICall({
+//         ownerId,
+//         customerId: customer.id,
+//         phoneNumber: customer.phone,
+//         audioPath,
+//       });
+
+//     } catch (err) {
+//       console.error(`❌ Error calling ${customer.phone}:`, err.message);
+//       await db
+//         .collection("customers")
+//         .doc(ownerId)
+//         .collection("customerList")
+//         .doc(customer.id)
+//         .update({ callStatus: "failed" });
+//     }
+//   }
+// }
+
+// module.exports = { processCallsForOwner };
+
+
+
+
+
+
+
+
+// backend/controllers/callController.js
 const admin = require("firebase-admin");
 const { runGeminiPrompt } = require("../services/geminiAgent");
 const { getTTSService } = require("../services/tts");
@@ -113,76 +204,37 @@ const { triggerAICall } = require("../utils/twilioClient");
 const db = admin.firestore();
 
 async function fetchTodayCustomers(ownerId, retryLimit) {
-  const snapshot = await db
+  const snap = await db
     .collection("customers")
     .doc(ownerId)
     .collection("customerList")
-    .where("status", "in", ["pending", "retry", "Partial", "not-answered"])
+    .where("status", "in", ["pending","retry","Partial","not-answered"])
     .get();
 
-  return snapshot.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((cust) => (cust.dailyCallAttempts || 0) < retryLimit);
+  return snap.docs.map(d => ({id: d.id, ...d.data()}))
+    .filter(c => (c.dailyCallAttempts||0) < retryLimit && c.callStatus !== "calling");
 }
 
 async function processCallsForOwner(ownerId) {
-  const configSnap = await db.collection("businessConfigs").doc(ownerId).get();
-  const config = configSnap.exists ? configSnap.data() : {};
-  const retryLimit = parseInt(config.retryLimit || "3");
-
-  const customers = await fetchTodayCustomers(ownerId, retryLimit);
-  if (customers.length === 0) {
-    console.log(`✅ No customers to call for owner ${ownerId}`);
-    return;
-  }
+  const cfg = (await db.collection("businessConfigs").doc(ownerId).get()).data();
+  const limit = parseInt(cfg.retryLimit || "3");
+  const customers = await fetchTodayCustomers(ownerId, limit);
+  if (!customers.length) return console.log(`✅ No customers for ${ownerId}`);
 
   const tts = await getTTSService();
 
-  for (const customer of customers) {
-    if (customer.callStatus === "calling") {
-      console.log(`⏩ Skipping already calling customer: ${customer.phone}`);
-      continue;
-    }
+  for (const cust of customers) {
+    const ref = db.collection("customers").doc(ownerId).collection("customerList").doc(cust.id);
+    await ref.update({
+      callStatus: "calling",
+      dailyCallAttempts: (cust.dailyCallAttempts||0) + 1
+    });
 
-    try {
-      console.log(`🔁 Calling ${customer.name} (${customer.phone})`);
-
-      // ✅ Step 1: Update call status immediately
-      await db
-        .collection("customers")
-        .doc(ownerId)
-        .collection("customerList")
-        .doc(customer.id)
-        .update({
-          callStatus: "calling",
-          lastCall: admin.firestore.FieldValue.serverTimestamp(),
-          dailyCallAttempts: (customer.dailyCallAttempts || 0) + 1,
-          attemptCount: (customer.attemptCount || 0) + 1,
-        });
-
-      // Step 2: Generate Gemini message
-      const replyText = await runGeminiPrompt(customer, config);
-
-      // Step 3: Convert to audio
-      const audioPath = await tts.synthesizeSpeech(replyText);
-
-      // Step 4: Trigger call
-      await triggerAICall({
-        ownerId,
-        customerId: customer.id,
-        phoneNumber: customer.phone,
-        audioPath,
-      });
-
-    } catch (err) {
-      console.error(`❌ Error calling ${customer.phone}:`, err.message);
-      await db
-        .collection("customers")
-        .doc(ownerId)
-        .collection("customerList")
-        .doc(customer.id)
-        .update({ callStatus: "failed" });
-    }
+    await triggerAICall({
+      ownerId,
+      customerId: cust.id,
+      phoneNumber: cust.phone
+    });
   }
 }
 

@@ -3,7 +3,18 @@ const textToSpeech = require("@google-cloud/text-to-speech");
 const fs = require("fs");
 const path = require("path");
 
-const client = new textToSpeech.TextToSpeechClient();
+const { GoogleAuth } = require("google-auth-library");
+
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
+const client = new textToSpeech.TextToSpeechClient({
+  credentials: {
+    client_email: credentials.client_email,
+    private_key: credentials.private_key,
+  },
+  projectId: credentials.project_id,
+});
+
 
 /**
  * Synthesize speech from text using a selected Google TTS voice.

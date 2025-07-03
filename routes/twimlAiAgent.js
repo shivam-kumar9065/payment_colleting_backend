@@ -72,9 +72,6 @@
 
 
 
-
-// Backend/routes/twimlAiAgent.js
-
 const { getTranscriptionFromGoogle } = require('../services/stt/googleSTT');
 const { generateSpeechFromGoogle } = require('../services/tts/googleTTS');
 const { getAgentResponseFromLLM } = require('../services/ai/geminiClient');
@@ -110,9 +107,6 @@ module.exports.handleVoiceConversation = async (req, res) => {
       memoryMap[callId].push({ role: 'user', parts: [{ text: userMessage }] });
     }
 
-    // Determine if this is first message
-    const isFirstMessage = memoryMap[callId].length === 0;
-
     const agentResponse = await getAgentResponseFromLLM(
       memoryMap[callId],
       false,
@@ -132,11 +126,9 @@ module.exports.handleVoiceConversation = async (req, res) => {
 
     memoryMap[callId].push({ role: 'model', parts: [{ text: agentResponse }] });
 
-    // Generate TTS
     const audioPath = await generateSpeechFromGoogle(agentResponse, callerUid);
-
-    // Serve TTS file
     const relativePath = path.basename(audioPath);
+
     const twiml = `
       <Response>
         <Play>/temp/${relativePath}</Play>
@@ -158,4 +150,3 @@ module.exports.handleVoiceConversation = async (req, res) => {
     res.send(`<Response><Say>Sorry, an error occurred. Please try again later.</Say></Response>`);
   }
 };
-

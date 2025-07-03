@@ -212,11 +212,13 @@ async function fetchTodayCustomers(ownerId, retryLimit) {
     .get();
 
   return snap.docs.map(d => ({id: d.id, ...d.data()}))
-    .filter(c => (c.callStatus !== "calling");
+    .filter(c => (c.dailyCallAttempts||0) < retryLimit && c.callStatus !== "calling");
 }
 
 async function processCallsForOwner(ownerId) {
   const cfg = (await db.collection("businessConfigs").doc(ownerId).get()).data();
+    const limit = parseInt(cfg.retryLimit || "3");
+  const customers = await fetchTodayCustomers(ownerId, limit);
   if (!customers.length) return console.log(`✅ No customers for ${ownerId}`);
 
   const tts = await getTTSService();

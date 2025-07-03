@@ -208,7 +208,7 @@ async function fetchTodayCustomers(ownerId, retryLimit) {
     .collection("customers")
     .doc(ownerId)
     .collection("customerList")
-    .where("status", "in", ["pending","retry","Partial","not-answered"])
+    .where("status", "in", ["pending","retry","Pending","Partial","not-answered"])
     .get();
 
   return snap.docs.map(d => ({id: d.id, ...d.data()}))

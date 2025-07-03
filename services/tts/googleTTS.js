@@ -3,9 +3,8 @@ const textToSpeech = require("@google-cloud/text-to-speech");
 const fs = require("fs");
 const path = require("path");
 
-const { GoogleAuth } = require("google-auth-library");
-
-const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+const decoded = Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, "base64").toString("utf8");
+const credentials = JSON.parse(decoded);
 
 const client = new textToSpeech.TextToSpeechClient({
   credentials: {

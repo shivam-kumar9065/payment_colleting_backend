@@ -14,6 +14,8 @@ const path = require("path");``
 
 const startCallsRoute = require("./routes/startCalls");
 const cors = require('cors');
+const twimlPlay = require("./routes/twimlPlay");
+//
 
 
 // // ✅ Initialize Firebase Admin
@@ -40,9 +42,11 @@ app.use("/twiml-handler", twimlHandler);
 app.use("/audio", express.static(path.join(__dirname, "/temp"))); // Serve audio files
 app.use("/twiml/ai-agent", twimlAiAgent); 
 app.use("/api/queue", triggerDailyQueue);
+ app.use("/twiml", twimlPlay);
 
 // 👇 Serve audio files for Twilio from /temp folder
-app.use("/temp", express.static(path.join(__dirname, "temp")));
+//app.use("/temp", express.static(path.join(__dirname, "temp")));
+app.use("/audio", express.static(path.join(__dirname, "temp/audio")));
 app.use("/api", startCallsRoute); 
 // ✅ Start daily reset cron
 require("./cron/resetDailyAttempts");

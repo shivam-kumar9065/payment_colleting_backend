@@ -125,7 +125,7 @@ const validPaymentStatuses = [
   'contacted - no response'
 ];
 
-const getAgentResponseFromLLM = async (
+const generateReply = async (
   currentContents,
   isFinalTurn = false,
   customerData = null,
@@ -240,4 +240,4 @@ Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assis
   }
 };
 
-module.exports = { getAgentResponseFromLLM };
+module.exports = { generateReply };

@@ -61,8 +61,6 @@
 
 
 
-
-
 // ✅ backend/routes/twimlHandler.js
 const express = require("express");
 const router = express.Router();
@@ -73,7 +71,7 @@ const { runGeminiPrompt } = require("../services/geminiAgent");
 
 const db = admin.firestore();
 
-// 🎯 TwiML Response route
+// 🎯 1. Generate TwiML response
 router.post("/", async (req, res) => {
   const { ownerId, customerId } = req.query;
 
@@ -82,14 +80,16 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const customerDoc = await db
+    const customerRef = db
       .collection("customers")
       .doc(ownerId)
       .collection("customerList")
-      .doc(customerId)
-      .get();
+      .doc(customerId);
 
-    const configDoc = await db.collection("businessConfigs").doc(ownerId).get();
+    const [customerDoc, configDoc] = await Promise.all([
+      customerRef.get(),
+      db.collection("businessConfigs").doc(ownerId).get()
+    ]);
 
     if (!customerDoc.exists || !configDoc.exists) {
       return res.status(404).send("Customer or config not found");
@@ -99,21 +99,26 @@ router.post("/", async (req, res) => {
     const config = configDoc.data();
 
     const geminiReply = await runGeminiPrompt(customer, config);
-    const audioUrl = await generateTTS(geminiReply); // e.g., /temp/xyz.mp3
+    const audioUrl = await generateTTS(geminiReply); // e.g., /temp/output_xyz.mp3
 
     const response = new VoiceResponse();
     response.play(`${process.env.BASE_URL}${audioUrl}`);
-    res.type("text/xml").send(response.toString());
 
+    res.type("text/xml").send(response.toString());
   } catch (err) {
-    console.error("❌ TwiML generation failed:", err.message);
+    console.error("❌ TwiML generation failed:", err);
     res.status(500).send("Server error");
   }
 });
 
-// ✅ Call status handler
+// ✅ 2. Handle Twilio call status updates (disconnection, missed, completed, etc.)
 router.post("/call-status", async (req, res) => {
-  const { CallStatus, To } = req.body;
+  const { CallStatus, To } = req.body || {};
+
+  if (!CallStatus || !To) {
+    console.warn("⚠️ Missing CallStatus or To in webhook");
+    return res.sendStatus(400);
+  }
 
   try {
     const snapshot = await db
@@ -131,9 +136,14 @@ router.post("/call-status", async (req, res) => {
     const ownerId = doc.ref.parent.parent.id;
     const customerId = doc.id;
 
+    // Decide status
     let newStatus = "pending";
     if (CallStatus === "completed") newStatus = "completed";
-    else if (["no-answer", "busy", "failed", "canceled"].includes(CallStatus)) newStatus = "not-answered";
+    else if (["no-answer", "busy", "failed", "canceled"].includes(CallStatus))
+      newStatus = "not-answered";
+    else if (["ringing", "in-progress"].includes(CallStatus))
+      newStatus = "calling";
+    else if (CallStatus === "answered") newStatus = "connected";
 
     await db
       .collection("customers")
@@ -145,10 +155,9 @@ router.post("/call-status", async (req, res) => {
     console.log(`📞 Call status updated: ${To} => ${newStatus}`);
     res.sendStatus(200);
   } catch (err) {
-    console.error("❌ Error handling call status:", err.message);
+    console.error("❌ Error handling call status:", err);
     res.sendStatus(500);
   }
 });
 
 module.exports = router;
-

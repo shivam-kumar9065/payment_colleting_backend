@@ -107,22 +107,21 @@
 
 
 
+// ✅ backend/services/ai/geminiClient.js
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const admin = require("firebase-admin");
 
-const { VertexAI } = require('@google-cloud/vertexai');
-const admin = require('firebase-admin');
-
-// Setup
-const vertexAI = new VertexAI({ project: process.env.GOOGLE_PROJECT_ID, location: 'us-central1' });
-const model = vertexAI.getGenerativeModel({ model: 'gemini-pro' });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 const validPaymentStatuses = [
-  'unpaid',
-  'partially paid',
-  'paid',
-  'disputed',
-  'promised to pay',
-  'unreachable',
-  'contacted - no response'
+  "unpaid",
+  "partially paid",
+  "paid",
+  "disputed",
+  "promised to pay",
+  "unreachable",
+  "contacted - no response",
 ];
 
 const generateReply = async (
@@ -131,7 +130,7 @@ const generateReply = async (
   customerData = null,
   ownerWhatsAppNumber = null,
   businessName = null,
-  agentName = 'CashFlow Assist'
+  agentName = "CashFlow Assist"
 ) => {
   let contentsForGemini = [...currentContents];
   let finalSummaryPrompt = "";
@@ -140,14 +139,14 @@ const generateReply = async (
     finalSummaryPrompt = `Given the complete conversation above and the following customer details:
 Customer Name: ${customerData.CustomerName}
 Due Amount: ₹${customerData.DueAmount}
-Service Details: ${customerData.ServiceDetails || 'N/A'}
-Last Payment Date: ${customerData.LastPaymentDate || 'N/A'}
-Remarks: ${customerData.Remarks || 'N/A'}
-Promised Date: ${customerData.promisedDate || 'N/A'}
+Service Details: ${customerData.ServiceDetails || "N/A"}
+Last Payment Date: ${customerData.LastPaymentDate || "N/A"}
+Remarks: ${customerData.Remarks || "N/A"}
+Promised Date: ${customerData.promisedDate || "N/A"}
 Current Payment Status: ${customerData.PaymentStatus}
-Owner's WhatsApp Number (for UPI/Screenshot): ${ownerWhatsAppNumber || 'N/A'}
-Business Name: ${businessName || 'N/A'}
-Agent Name: ${agentName || 'N/A'}
+Owner's WhatsApp Number (for UPI/Screenshot): ${ownerWhatsAppNumber || "N/A"}
+Business Name: ${businessName || "N/A"}
+Agent Name: ${agentName || "N/A"}
 
 Provide a concise JSON summary of the entire call. Expected JSON structure:
 {
@@ -159,19 +158,23 @@ Provide a concise JSON summary of the entire call. Expected JSON structure:
   "promisedTime": "string (HH:MM, if new promise given and confirmed by LLM during call)"
 }`;
     contentsForGemini.push({ role: "user", parts: [{ text: finalSummaryPrompt }] });
-  } else if (currentContents.length === 0 || currentContents[currentContents.length - 1].role !== 'user') {
+  } else if (
+    currentContents.length === 0 ||
+    currentContents[currentContents.length - 1].role !== "user"
+  ) {
     contentsForGemini.push({
       role: "user",
-      parts: [{
-        text: `You are a trained digital agent and a professional representative for small businesses like computer service, general store, and mobile shops. Your role is the Payments Specialist. Your name is '${agentName}'. You are polite, confident, and helpful.
+      parts: [
+        {
+          text: `You are a trained digital agent and a professional representative for small businesses like computer service, general store, and mobile shops. Your role is the Payments Specialist. Your name is '${agentName}'. You are polite, confident, and helpful.
 
 Here are the customer details:
 Customer Name: ${customerData.CustomerName}
 Due Amount: ₹${customerData.DueAmount}
-Service Details: ${customerData.ServiceDetails || 'N/A'}
-Last Payment Date: ${customerData.LastPaymentDate || 'N/A'}
-Remarks: ${customerData.Remarks || 'N/A'}
-Promised Date: ${customerData.promisedDate || 'N/A'}
+Service Details: ${customerData.ServiceDetails || "N/A"}
+Last Payment Date: ${customerData.LastPaymentDate || "N/A"}
+Remarks: ${customerData.Remarks || "N/A"}
+Promised Date: ${customerData.promisedDate || "N/A"}
 
 The ONLY accepted payment method is UPI to: ${ownerWhatsAppNumber}.
 
@@ -181,15 +184,16 @@ Strict rules:
 - If user says "will pay later" → ask exact date + time. Max 2 days allowed.
 - If user is rude → say “Owner will contact you later” and end.
 
-Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assist with your pending payment."`
-      }]
+Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assist with your pending payment."`,
+        },
+      ],
     });
   }
 
   try {
     const result = await model.generateContent({ contents: contentsForGemini });
     const responseText = result.response.text();
-    console.log("LLM Response:", responseText);
+    console.log("LLM Raw Response:", responseText);
 
     if (isFinalTurn) {
       try {
@@ -200,43 +204,43 @@ Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assis
           const status = parsedJson.newPaymentStatus?.toLowerCase();
           if (!validPaymentStatuses.includes(status)) {
             console.warn("Invalid status from Gemini. Defaulting...");
-            parsedJson.newPaymentStatus = customerData.PaymentStatus.toLowerCase() || 'unpaid';
+            parsedJson.newPaymentStatus =
+              customerData.PaymentStatus?.toLowerCase() || "unpaid";
           } else {
             parsedJson.newPaymentStatus = status;
           }
 
           return parsedJson;
         } else {
-          throw new Error("No JSON in final response");
+          throw new Error("No JSON found in LLM final response");
         }
       } catch (e) {
-        console.error("Error parsing summary JSON:", e);
+        console.error("Error parsing LLM summary JSON:", e);
         return {
           callOutcome: "LLM Error",
           conversationSummary: `LLM failed: ${e.message}`,
           actionTaken: "Manual review",
-          newPaymentStatus: customerData?.PaymentStatus || 'unpaid',
-          promisedDate: '',
-          promisedTime: ''
+          newPaymentStatus: customerData?.PaymentStatus || "unpaid",
+          promisedDate: "",
+          promisedTime: "",
         };
       }
     } else {
       return responseText;
     }
-
   } catch (error) {
     console.error("LLM error:", error);
     if (isFinalTurn) {
       return {
         callOutcome: "LLM Error",
-        conversationSummary: `Error: ${error.message}`,
+        conversationSummary: `LLM failed: ${error.message}`,
         actionTaken: "Manual review",
-        newPaymentStatus: customerData?.PaymentStatus || 'unpaid',
-        promisedDate: '',
-        promisedTime: ''
+        newPaymentStatus: customerData?.PaymentStatus || "unpaid",
+        promisedDate: "",
+        promisedTime: "",
       };
     }
-    return "Sorry, I'm having trouble responding. Please try again.";
+    return "I'm sorry, I'm having trouble connecting right now.";
   }
 };
 

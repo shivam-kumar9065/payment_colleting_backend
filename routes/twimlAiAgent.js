@@ -71,18 +71,19 @@
 
 
 
+// ✅ backend/routes/twimlAgent.js
+const express = require('express');
+const router = express.Router();
 
-const { getTranscriptionFromGoogle } = require('../services/stt/googleSTT');
-const { generateSpeechFromGoogle } = require('../services/tts/googleTTS');
 const { getAgentResponseFromLLM } = require('../services/ai/geminiClient');
+const { generateSpeechFromGoogle } = require('../services/tts/googleTTS');
 const admin = require('firebase-admin');
 const path = require('path');
-const fs = require('fs');
 
 const memoryMap = {}; // Holds memory per CallSid
 
-module.exports.handleVoiceConversation = async (req, res) => {
-  const { CallSid, SpeechResult, From } = req.body;
+router.post('/', async (req, res) => {
+  const { CallSid, SpeechResult } = req.body;
   const callId = CallSid;
 
   try {
@@ -101,7 +102,6 @@ module.exports.handleVoiceConversation = async (req, res) => {
     // Maintain memory
     if (!memoryMap[callId]) memoryMap[callId] = [];
 
-    // Handle input from user
     const userMessage = SpeechResult?.trim();
     if (userMessage) {
       memoryMap[callId].push({ role: 'user', parts: [{ text: userMessage }] });
@@ -149,4 +149,7 @@ module.exports.handleVoiceConversation = async (req, res) => {
     res.type('text/xml');
     res.send(`<Response><Say>Sorry, an error occurred. Please try again later.</Say></Response>`);
   }
-};
+});
+
+// ✅ Export properly
+module.exports = router;

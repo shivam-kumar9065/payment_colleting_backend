@@ -29,7 +29,7 @@ const db = admin.firestore();
  * @returns {Promise<string>} - Path to generated audio file
  */
 async function synthesizeText(text, ownerId) {
-  let voice = "hi-lN-Chirp3-HD-Despina (FEMALE)"; // default fallback
+  let voice = "en-IN-Wavenet-C"; // default fallback
 
   try {
     const configSnap = await db.collection("businessConfigs").doc(ownerId).get();

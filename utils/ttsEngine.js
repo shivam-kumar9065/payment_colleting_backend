@@ -1,14 +1,47 @@
-// backend/utils/ttsEngine.js
+// // backend/utils/ttsEngine.js
+// const { synthesize } = require("../services/tts");
+
+// /**
+//  * Synthesizes speech using the selected TTS provider (Google or Coqui)
+//  * @param {string} text - The message to speak
+//  * @param {string} voice - Optional voice setting (used for Google TTS only)
+//  * @returns {Promise<string>} - Path to generated audio file
+//  */
+// async function synthesizeText(text, voice = "hi-lN-Chirp3-HD-Despina (FEMALE)") {
+//   return await synthesize(text, voice);
+// }
+
+// module.exports = { synthesizeText };
+
+
+
+
+// ✅ backend/utils/ttsEngine.js
 const { synthesize } = require("../services/tts");
+const admin = require("firebase-admin");
+
+const db = admin.firestore();
 
 /**
- * Synthesizes speech using the selected TTS provider (Google or Coqui)
- * @param {string} text - The message to speak
- * @param {string} voice - Optional voice setting (used for Google TTS only)
+ * Synthesizes speech using selected TTS provider (Google or Coqui)
+ * @param {string} text - Message to convert to audio
+ * @param {string} ownerId - Used to fetch preferredVoice from Firestore
  * @returns {Promise<string>} - Path to generated audio file
  */
-async function synthesizeText(text, voice = "en-US-Wavenet-A") {
+async function synthesizeText(text, ownerId) {
+  let voice = "hi-lN-Chirp3-HD-Despina (FEMALE)"; // default fallback
+
+  try {
+    const configSnap = await db.collection("businessConfigs").doc(ownerId).get();
+    if (configSnap.exists && configSnap.data().preferredVoice) {
+      voice = configSnap.data().preferredVoice;
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to fetch preferredVoice, using default.", err.message);
+  }
+
   return await synthesize(text, voice);
 }
 
 module.exports = { synthesizeText };
+

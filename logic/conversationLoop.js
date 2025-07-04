@@ -86,7 +86,7 @@ async function handleConversation(ownerId, customerId, history = []) {
     .doc(customerId)
     .get();
 
-  const configSnap = await db.doc(`businessConfigs/${ownerId}`).get();
+  const configSnap = await db.doc(`businessConfig/${ownerId}`).get();
 
   if (!customerSnap.exists || !configSnap.exists) {
     throw new Error("Customer or config not found");

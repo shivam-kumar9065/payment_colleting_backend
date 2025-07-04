@@ -8,7 +8,7 @@ const { getTTSService } = require("../services/tts");
 const { triggerAICall } = require("../utils/twilioClient");
 
 async function processDailyQueue(ownerId) {
-  const configSnap = await db.doc(`businessConfigs/${ownerId}`).get();
+  const configSnap = await db.doc(`businessConfig/${ownerId}`).get();
   if (!configSnap.exists) {
     console.warn("❌ No business config found");
     return;

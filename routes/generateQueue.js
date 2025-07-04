@@ -9,7 +9,7 @@ router.get('/generate-queue', async (req, res) => {
     const uid = req.query.uid;
     if (!uid) return res.status(400).json({ error: 'Missing uid' });
 
-    const configSnap = await db.doc(`businessConfigs/${uid}`).get();
+    const configSnap = await db.doc(`businessConfig/${uid}`).get();
     if (!configSnap.exists) {
       return res.status(404).json({ error: 'No config found' });
     }

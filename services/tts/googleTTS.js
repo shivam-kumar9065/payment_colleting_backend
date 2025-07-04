@@ -118,8 +118,9 @@ async function synthesizeSpeech(text, ownerIdOrVoice = "en-US-Wavenet-A") {
       const doc = await admin.firestore().collection("businessConfig").doc(ownerIdOrVoice).get();
       const data = doc.exists ? doc.data() : null;
       voiceName = data?.preferredVoice || "hi-IN-Wavenet-A";
+      console.log("🎤 Using voice:", voiceName);
     } catch (e) {
-      console.warn("⚠️ Could not fetch preferredVoice, using default", e.message);
+      console.log("⚠️ Could not fetch preferredVoice, using default", e.message);
       voiceName = "hi-IN-Wavenet-A";
     }
   } else {

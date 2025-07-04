@@ -24,7 +24,7 @@ router.post("/start", async (req, res) => {
   const text = await runGeminiPrompt(customer, config);
   const audioPath = await synthesizeText(text, voice);
   const audioUrl = `${process.env.BASE_URL}/temp/${audioPath.split("/").pop()}`;
-   console.log("from twimlconversefile /start 🎤 Using voice:", voiceName);
+  console.log("from twimlconversefile /start 🎤 Using voice:", voice);
 
   const twiml = new VoiceResponse();
   const gather = twiml.gather({
@@ -53,7 +53,7 @@ router.post("/respond", async (req, res) => {
   const text = await runGeminiPrompt(customer, config, speech);
   const audioPath = await synthesizeText(text, voice);
   const audioUrl = `${process.env.BASE_URL}/temp/${audioPath.split("/").pop()}`;
-  console.log("from twimlconversefile 🎤 Using voice:", voiceName);
+  console.log("from twimlconversefile 🎤 Using voice:", voice);
 
   const twiml = new VoiceResponse();
   const gather = twiml.gather({

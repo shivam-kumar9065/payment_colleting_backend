@@ -57,7 +57,7 @@ const admin = require("firebase-admin");
 
 async function getPreferredVoice(businessId) {
   try {
-    const doc = await admin.firestore().collection("businessConfigs").doc(businessId).get();
+    const doc = await admin.firestore().collection("businessConfig").doc(businessId).get();
     if (doc.exists) {
       return doc.data().preferredVoice;
     }

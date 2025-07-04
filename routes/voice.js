@@ -51,7 +51,7 @@ router.post("/save-preference", async (req, res) => {
   if (!voice || !ownerId) return res.status(400).json({ error: "Missing voice or ownerId" });
 
   try {
-    await db.collection("businessConfigs").doc(ownerId).set(
+    await db.collection("businessConfig").doc(ownerId).set(
       { preferredVoice: voice },
       { merge: true }
     );
@@ -68,7 +68,7 @@ router.get("/preferred/:uid", async (req, res) => {
   if (!uid) return res.status(400).json({ error: "Missing user ID" });
 
   try {
-    const docRef = db.collection("businessConfigs").doc(uid);
+    const docRef = db.collection("businessConfig").doc(uid);
     const configSnap = await docRef.get();
 
     if (!configSnap.exists) {

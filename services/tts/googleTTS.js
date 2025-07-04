@@ -186,8 +186,6 @@
 
 
 
-
-
 // ✅ backend/services/tts/googleTTS.js
 
 const textToSpeech = require("@google-cloud/text-to-speech");
@@ -208,53 +206,54 @@ const client = new textToSpeech.TextToSpeechClient({
 
 /**
  * Synthesize speech from text using Firestore-stored voice per owner
- * @param {string} text - The message to be spoken
- * @param {string} ownerIdOrVoice - Firebase UID or direct voice name
  */
 async function synthesizeSpeech(text, ownerIdOrVoice = "en-US-Wavenet-A") {
-  let voiceName = "en-US-Wavenet-A";
+  let voiceName = "en-US-Wavenet-A"; // ultimate fallback
 
-  if (
-    typeof ownerIdOrVoice === "string" &&
-    ownerIdOrVoice.trim() !== "" &&
-    !ownerIdOrVoice.includes("-") // treat it as UID
-  ) {
-    const ownerId = ownerIdOrVoice;
-
-    try {
-      const docRef = admin.firestore().collection("businessConfig").doc(ownerId);
-      const docSnap = await docRef.get();
-
-      if (!docSnap.exists) {
-        console.warn(`⚠️ No businessConfig found for ownerId: ${ownerId}`);
-      } else {
-        const config = docSnap.data();
-
-        if (!config || !config.preferredVoice) {
-          console.warn(`⚠️ preferredVoice not set in businessConfig for ownerId: ${ownerId}`);
+  try {
+    if (
+      typeof ownerIdOrVoice === "string" &&
+      ownerIdOrVoice.trim() !== "" &&
+      !ownerIdOrVoice.includes("-")
+    ) {
+      // Looks like an ownerId, fetch preferredVoice
+      const doc = await admin.firestore().collection("businessConfig").doc(ownerIdOrVoice).get();
+      if (doc.exists) {
+        const data = doc.data();
+        if (data?.preferredVoice) {
+          voiceName = data.preferredVoice;
+          console.log(`🎤 [TTS] Loaded preferred voice from Firestore: ${voiceName}`);
         } else {
-          voiceName = config.preferredVoice;
-          console.log(`🎤 Loaded preferredVoice from Firestore for ${ownerId}: ${voiceName}`);
+          console.warn(`⚠️ [TTS] No preferredVoice set in Firestore for ownerId: ${ownerIdOrVoice}`);
         }
+      } else {
+        console.warn(`⚠️ [TTS] No businessConfig found for ownerId: ${ownerIdOrVoice}`);
       }
-    } catch (err) {
-      console.error(`❌ Error reading preferredVoice from Firestore for ${ownerIdOrVoice}:`, err.message);
+    } else {
+      // Probably an actual voice name passed directly
+      voiceName = ownerIdOrVoice;
+      console.log(`🎤 [TTS] Using directly passed voice name: ${voiceName}`);
     }
-  } else {
-    // Direct voice name passed
-    voiceName = ownerIdOrVoice;
-    console.log(`🎤 Using directly passed voice name: ${voiceName}`);
+  } catch (e) {
+    console.error(`❌ [TTS] Failed to fetch preferredVoice from Firestore. Reason:`, e.message);
+    voiceName = "en-US-Wavenet-A";
   }
 
+  // Make sure voiceName is valid
+  if (!voiceName || typeof voiceName !== "string") {
+    console.error("❌ [TTS] Invalid voice name. Falling back to en-US-Wavenet-A");
+    voiceName = "en-US-Wavenet-A";
+  }
+
+  const languageCode = voiceName.split("-").slice(0, 2).join("-");
   const filename = `google-${Date.now()}.mp3`;
   const filePath = path.join(__dirname, "../../temp", filename);
-  const languageCode = voiceName.split("-").slice(0, 2).join("-");
 
   const request = {
     input: { text },
     voice: {
-      languageCode,
       name: voiceName,
+      languageCode,
     },
     audioConfig: {
       audioEncoding: "MP3",
@@ -266,23 +265,22 @@ async function synthesizeSpeech(text, ownerIdOrVoice = "en-US-Wavenet-A") {
   try {
     const [response] = await client.synthesizeSpeech(request);
     fs.writeFileSync(filePath, response.audioContent, "binary");
-    console.log("✅ Google TTS generated:", filePath);
+    console.log("✅ [TTS] Google TTS generated:", filePath);
     return filePath;
-  } catch (err) {
-    console.error("❌ Failed to synthesize speech:", err.message);
-    throw err;
+  } catch (error) {
+    console.error("❌ [TTS] Failed to synthesize speech:", error.message);
+    throw error;
   }
 }
 
 /**
- * Fetch all Google Cloud TTS voices supporting Indian languages.
+ * Get all Indian language voices
  */
 async function getAvailableVoices() {
   const [result] = await client.listVoices();
-
   const indianLangCodes = [
-    "en-IN", "hi-IN", "gu-IN", "kn-IN", "ml-IN", "ta-IN",
-    "te-IN", "mr-IN", "bn-IN", "pa-IN", "ur-IN"
+    "en-IN", "hi-IN", "gu-IN", "kn-IN", "ml-IN",
+    "ta-IN", "te-IN", "mr-IN", "bn-IN", "pa-IN", "ur-IN"
   ];
 
   const filtered = result.voices
@@ -297,7 +295,7 @@ async function getAvailableVoices() {
       lang: v.languageCodes[0],
     }));
 
-  console.log(`✅ Fetched ${filtered.length} Indian language voices`);
+  console.log(`✅ [TTS] Fetched ${filtered.length} Indian voices`);
   return filtered;
 }
 
@@ -305,4 +303,3 @@ module.exports = {
   synthesizeSpeech,
   getAvailableVoices,
 };
-

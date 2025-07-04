@@ -195,6 +195,54 @@
 
 
 
+// // backend/controllers/callController.js
+// const admin = require("firebase-admin");
+// const { runGeminiPrompt } = require("../services/geminiAgent");
+// const { getTTSService } = require("../services/tts");
+// const { triggerAICall } = require("../utils/twilioClient");
+
+// const db = admin.firestore();
+
+// async function fetchTodayCustomers(ownerId, retryLimit) {
+//   const snap = await db
+//     .collection("customers")
+//     .doc(ownerId)
+//     .collection("customerList")
+//     .where("status", "in", ["pending","retry","Pending","Partial","not-answered"])
+//     .get();
+
+//   return snap.docs.map(d => ({id: d.id, ...d.data()}))
+//     .filter(c => (c.dailyCallAttempts||0) < retryLimit && c.callStatus !== "calling");
+// }
+
+// async function processCallsForOwner(ownerId) {
+//   const cfg = (await db.collection("businessConfig").doc(ownerId).get()).data();
+//     const limit = parseInt(cfg.retryLimit || "3");
+//   const customers = await fetchTodayCustomers(ownerId, limit);
+//   if (!customers.length) return console.log(`✅ No customers for ${ownerId}`);
+
+//   const tts = await getTTSService();
+
+//   for (const cust of customers) {
+//     const ref = db.collection("customers").doc(ownerId).collection("customerList").doc(cust.id);
+//     await ref.update({
+//       callStatus: "calling",
+//       dailyCallAttempts: (cust.dailyCallAttempts||0) + 1
+//     });
+
+//     await triggerAICall({
+//       ownerId,
+//       customerId: cust.id,
+//       phoneNumber: cust.phone
+//     });
+//   }
+// }
+
+// module.exports = { processCallsForOwner };
+
+
+
+
 // backend/controllers/callController.js
 const admin = require("firebase-admin");
 const { runGeminiPrompt } = require("../services/geminiAgent");
@@ -208,35 +256,60 @@ async function fetchTodayCustomers(ownerId, retryLimit) {
     .collection("customers")
     .doc(ownerId)
     .collection("customerList")
-    .where("status", "in", ["pending","retry","Pending","Partial","not-answered"])
+    .where("status", "in", ["pending", "retry", "Pending", "Partial", "not-answered"])
     .get();
 
-  return snap.docs.map(d => ({id: d.id, ...d.data()}))
-    .filter(c => (c.dailyCallAttempts||0) < retryLimit && c.callStatus !== "calling");
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter(
+      (c) =>
+        (c.dailyCallAttempts || 0) < retryLimit &&
+        c.callStatus !== "calling"
+    );
 }
 
 async function processCallsForOwner(ownerId) {
-  const cfg = (await db.collection("businessConfig").doc(ownerId).get()).data();
-    const limit = parseInt(cfg.retryLimit || "3");
+  const configSnap = await db.collection("businessConfig").doc(ownerId).get();
+  if (!configSnap.exists) {
+    console.warn(`❌ Business config not found for ownerId: ${ownerId}`);
+    return;
+  }
+
+  const cfg = configSnap.data();
+  const limit = parseInt(cfg.retryLimit || "3"); // Safely fallback if retryLimit is missing or empty
+
   const customers = await fetchTodayCustomers(ownerId, limit);
-  if (!customers.length) return console.log(`✅ No customers for ${ownerId}`);
+  if (!customers.length) {
+    console.log(`✅ No customers to call for ${ownerId}`);
+    return;
+  }
 
   const tts = await getTTSService();
 
   for (const cust of customers) {
-    const ref = db.collection("customers").doc(ownerId).collection("customerList").doc(cust.id);
+    const ref = db
+      .collection("customers")
+      .doc(ownerId)
+      .collection("customerList")
+      .doc(cust.id);
+
     await ref.update({
       callStatus: "calling",
-      dailyCallAttempts: (cust.dailyCallAttempts||0) + 1
+      dailyCallAttempts: (cust.dailyCallAttempts || 0) + 1,
     });
 
     await triggerAICall({
       ownerId,
       customerId: cust.id,
-      phoneNumber: cust.phone
+      phoneNumber: cust.phone,
     });
   }
 }
 
 module.exports = { processCallsForOwner };
+
+
+
+
+
 

@@ -128,7 +128,7 @@ async function synthesizeSpeech(text, ownerIdOrVoice = "en-US-Wavenet-A") {
   }
 
   const filename = `google-${Date.now()}.mp3`;
-  const filePath = path.join(__dirname, "../../public/temp", filename);
+  const filePath = path.join(__dirname, "../../temp", filename);
   const languageCode = voiceName.split("-").slice(0, 2).join("-");
 
   const request = {

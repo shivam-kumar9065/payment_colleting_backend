@@ -14,7 +14,7 @@ router.post("/start", async (req, res) => {
   if (!ownerId || !customerId) return res.status(400).send("Missing ownerId or customerId");
 
   const custRef = db.collection("customers").doc(ownerId).collection("customerList").doc(customerId);
-  const [custSnap, cfgSnap] = await Promise.all([custRef.get(), db.collection("businessConfigs").doc(ownerId).get()]);
+  const [custSnap, cfgSnap] = await Promise.all([custRef.get(), db.collection("businessConfig").doc(ownerId).get()]);
 
   if (!custSnap.exists || !cfgSnap.exists) return res.status(404).send("Customer or config not found");
 
@@ -43,7 +43,7 @@ router.post("/respond", async (req, res) => {
   if (!ownerId || !customerId) return res.status(400).send("Missing ownerId or customerId");
 
   const custRef = db.collection("customers").doc(ownerId).collection("customerList").doc(customerId);
-  const [custSnap, cfgSnap] = await Promise.all([custRef.get(), db.collection("businessConfigs").doc(ownerId).get()]);
+  const [custSnap, cfgSnap] = await Promise.all([custRef.get(), db.collection("businessConfig").doc(ownerId).get()]);
   if (!custSnap.exists || !cfgSnap.exists) return res.status(404).send("Customer or config not found");
 
   const customer = custSnap.data();

@@ -90,7 +90,7 @@ router.post('/', async (req, res) => {
     const callerUid = req.query.uid;
     if (!callerUid) return res.status(400).send('Missing owner UID.');
 
-    const businessRef = admin.firestore().collection('businessConfigs').doc(callerUid);
+    const businessRef = admin.firestore().collection('businessConfig').doc(callerUid);
     const businessDoc = await businessRef.get();
     if (!businessDoc.exists) return res.status(404).send('Business config not found');
 

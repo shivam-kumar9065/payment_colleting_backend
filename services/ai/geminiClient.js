@@ -203,7 +203,7 @@ Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assis
 
           const status = parsedJson.newPaymentStatus?.toLowerCase();
           if (!validPaymentStatuses.includes(status)) {
-            console.warn("Invalid status from Gemini. Defaulting...");
+            console.log("Invalid status from Gemini. Defaulting...");
             parsedJson.newPaymentStatus =
               customerData.PaymentStatus?.toLowerCase() || "unpaid";
           } else {
@@ -215,7 +215,7 @@ Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assis
           throw new Error("No JSON found in LLM final response");
         }
       } catch (e) {
-        console.error("Error parsing LLM summary JSON:", e);
+        console.log("Error parsing LLM summary JSON:", e);
         return {
           callOutcome: "LLM Error",
           conversationSummary: `LLM failed: ${e.message}`,
@@ -229,7 +229,7 @@ Start by saying: "Hello, I'm ${agentName} from ${businessName}, calling to assis
       return responseText;
     }
   } catch (error) {
-    console.error("LLM error:", error);
+    console.log("LLM error:", error);
     if (isFinalTurn) {
       return {
         callOutcome: "LLM Error",

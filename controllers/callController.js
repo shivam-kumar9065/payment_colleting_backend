@@ -216,7 +216,7 @@ async function fetchTodayCustomers(ownerId, retryLimit) {
 }
 
 async function processCallsForOwner(ownerId) {
-  const cfg = (await db.collection("businessConfigs").doc(ownerId).get()).data();
+  const cfg = (await db.collection("businessConfig").doc(ownerId).get()).data();
     const limit = parseInt(cfg.retryLimit || "3");
   const customers = await fetchTodayCustomers(ownerId, limit);
   if (!customers.length) return console.log(`✅ No customers for ${ownerId}`);

@@ -243,6 +243,77 @@
 
 
 
+// // backend/controllers/callController.js
+// const admin = require("firebase-admin");
+// const { runGeminiPrompt } = require("../services/geminiAgent");
+// const { getTTSService } = require("../services/tts");
+// const { triggerAICall } = require("../utils/twilioClient");
+
+// const db = admin.firestore();
+
+// async function fetchTodayCustomers(ownerId, retryLimit) {
+//   const snap = await db
+//     .collection("customers")
+//     .doc(ownerId)
+//     .collection("customerList")
+//     .where("status", "in", ["pending", "retry", "Pending", "Partial", "not-answered"])
+//     .get();
+
+//   return snap.docs
+//     .map((d) => ({ id: d.id, ...d.data() }))
+//     .filter(
+//       (c) =>
+//         (c.dailyCallAttempts || 0) < retryLimit &&
+//         c.callStatus !== "calling"
+//     );
+// }
+
+// async function processCallsForOwner(ownerId) {
+//   const configSnap = await db.collection("businessConfig").doc(ownerId).get();
+//   if (!configSnap.exists) {
+//     console.warn(`❌ Business config not found for ownerId: ${ownerId}`);
+//     return;
+//   }
+
+//   const cfg = configSnap.data();
+//   const limit = parseInt(cfg.retryLimit || "3"); // Safely fallback if retryLimit is missing or empty
+
+//   const customers = await fetchTodayCustomers(ownerId, limit);
+//   if (!customers.length) {
+//     console.log(`✅ No customers to call for ${ownerId}`);
+//     return;
+//   }
+
+//   const tts = await getTTSService();
+
+//   for (const cust of customers) {
+//     const ref = db
+//       .collection("customers")
+//       .doc(ownerId)
+//       .collection("customerList")
+//       .doc(cust.id);
+
+//     await ref.update({
+//       callStatus: "calling",
+//       dailyCallAttempts: (cust.dailyCallAttempts || 0) + 1,
+//     });
+
+//     await triggerAICall({
+//       ownerId,
+//       customerId: cust.id,
+//       phoneNumber: cust.phone,
+//     });
+//   }
+// }
+
+// module.exports = { processCallsForOwner };
+
+
+
+
+
+
+
 // backend/controllers/callController.js
 const admin = require("firebase-admin");
 const { runGeminiPrompt } = require("../services/geminiAgent");
@@ -252,14 +323,21 @@ const { triggerAICall } = require("../utils/twilioClient");
 const db = admin.firestore();
 
 async function fetchTodayCustomers(ownerId, retryLimit) {
-  const snap = await db
-    .collection("customers")
-    .doc(ownerId)
-    .collection("customerList")
-    .where("status", "in", ["pending", "retry", "Pending", "Partial", "not-answered"])
-    .get();
+  const allowedStatuses = ["pending", "retry", "Pending", "Partial", "not-answered"];
+  let allDocs = [];
 
-  return snap.docs
+  // Fetch in chunks (Firestore doesn't allow 'in' with >10 values and can throw errors)
+  for (const status of allowedStatuses) {
+    const snap = await db
+      .collection("customers")
+      .doc(ownerId)
+      .collection("customerList")
+      .where("status", "==", status)
+      .get();
+    allDocs.push(...snap.docs);
+  }
+
+  return allDocs
     .map((d) => ({ id: d.id, ...d.data() }))
     .filter(
       (c) =>
@@ -276,7 +354,7 @@ async function processCallsForOwner(ownerId) {
   }
 
   const cfg = configSnap.data();
-  const limit = parseInt(cfg.retryLimit || "3"); // Safely fallback if retryLimit is missing or empty
+  const limit = parseInt(cfg.retryLimit || "3");
 
   const customers = await fetchTodayCustomers(ownerId, limit);
   if (!customers.length) {
@@ -307,8 +385,6 @@ async function processCallsForOwner(ownerId) {
 }
 
 module.exports = { processCallsForOwner };
-
-
 
 
 
